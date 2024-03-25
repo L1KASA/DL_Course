@@ -1,5 +1,11 @@
-from __future__ import print_function
-import numpy as np
+from __future__ import annotations, print_function
+
+from typing import TYPE_CHECKING
+
+from numpy import ndarray
+
+if TYPE_CHECKING:
+    from typing import Any, Dict, Tuple
 
 try:
     from .im2col_cython import col2im_cython, im2col_cython
@@ -13,7 +19,12 @@ except ImportError:
 from .im2col import *
 
 
-def conv_forward_im2col(x, w, b, conv_param):
+def conv_forward_im2col(
+    x: np.ndarray,
+    w: np.ndarray,
+    b: np.ndarray,
+    conv_param: Dict[str, int],
+) -> Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, int], np.ndarray]]:
     """
     A fast implementation of the forward pass for a convolutional layer
     based on im2col and col2im.
@@ -42,7 +53,12 @@ def conv_forward_im2col(x, w, b, conv_param):
     return out, cache
 
 
-def conv_forward_strides(x, w, b, conv_param):
+def conv_forward_strides(
+    x: np.ndarray,
+    w: np.ndarray,
+    b: np.ndarray,
+    conv_param: Dict[str, int],
+) -> Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, int], np.ndarray]]:
     N, C, H, W = x.shape
     F, _, HH, WW = w.shape
     stride, pad = conv_param["stride"], conv_param["pad"]
@@ -70,11 +86,12 @@ def conv_forward_strides(x, w, b, conv_param):
     x_cols.shape = (C * HH * WW, N * out_h * out_w)
 
     # Now all our convolutions are a big matrix multiply
-    res = w.reshape(F, -1).dot(x_cols) + b.reshape(-1, 1)
+    res: np.ndarray = w.reshape(F, -1).dot(x_cols) + b.reshape(-1, 1)
 
     # Reshape the output
     res.shape = (F, N, out_h, out_w)
-    out = res.transpose(1, 0, 2, 3)
+    # out = res.transpose(1, 0, 2, 3)
+    out = np.transpose(res, axes=(1, 0, 2, 3))
 
     # Be nice and return a contiguous array
     # The old version of conv_forward_fast doesn't do this, so for a fair
@@ -85,7 +102,10 @@ def conv_forward_strides(x, w, b, conv_param):
     return out, cache
 
 
-def conv_backward_strides(dout, cache):
+def conv_backward_strides(
+    dout: np.ndarray,
+    cache: Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, int], np.ndarray],
+) -> Tuple[Any, Any, ndarray]:
     x, w, b, conv_param, x_cols = cache
     stride, pad = conv_param["stride"], conv_param["pad"]
 
@@ -95,7 +115,8 @@ def conv_backward_strides(dout, cache):
 
     db = np.sum(dout, axis=(0, 2, 3))
 
-    dout_reshaped = dout.transpose(1, 0, 2, 3).reshape(F, -1)
+    # dout_reshaped = dout.transpose(1, 0, 2, 3).reshape(F, -1)
+    dout_reshaped = np.transpose(dout, axes=(1, 0, 2, 3)).reshape(F, -1)
     dw = dout_reshaped.dot(x_cols.T).reshape(w.shape)
 
     dx_cols = w.reshape(F, -1).T.dot(dout_reshaped)
@@ -105,7 +126,10 @@ def conv_backward_strides(dout, cache):
     return dx, dw, db
 
 
-def conv_backward_im2col(dout, cache):
+def conv_backward_im2col(
+    dout: np.ndarray,
+    cache: Tuple[np.ndarray, np.ndarray, np.ndarray, Dict[str, int], np.ndarray],
+) -> Tuple[Any, Any, np.ndarray]:
     """
     A fast implementation of the backward pass for a convolutional layer
     based on im2col and col2im.
@@ -116,7 +140,8 @@ def conv_backward_im2col(dout, cache):
     db = np.sum(dout, axis=(0, 2, 3))
 
     num_filters, _, filter_height, filter_width = w.shape
-    dout_reshaped = dout.transpose(1, 2, 3, 0).reshape(num_filters, -1)
+    # dout_reshaped = dout.transpose(1, 2, 3, 0).reshape(num_filters, -1)
+    dout_reshaped = np.transpose(dout, axes=(1, 2, 3, 0)).reshape(num_filters, -1)
     dw = dout_reshaped.dot(x_cols.T).reshape(w.shape)
 
     dx_cols = w.reshape(num_filters, -1).T.dot(dout_reshaped)
@@ -140,7 +165,10 @@ conv_forward_fast = conv_forward_strides
 conv_backward_fast = conv_backward_strides
 
 
-def max_pool_forward_fast(x, pool_param):
+def max_pool_forward_fast(
+    x: np.ndarray,
+    pool_param: Dict[str, int],
+) -> tuple:
     """
     A fast implementation of the forward pass for a max pooling layer.
 
@@ -164,7 +192,7 @@ def max_pool_forward_fast(x, pool_param):
     return out, cache
 
 
-def max_pool_backward_fast(dout, cache):
+def max_pool_backward_fast(dout: np.ndarray, cache: tuple) -> np.ndarray:
     """
     A fast implementation of the backward pass for a max pooling layer.
 
@@ -180,7 +208,7 @@ def max_pool_backward_fast(dout, cache):
         raise ValueError('Unrecognized method "%s"' % method)
 
 
-def max_pool_forward_reshape(x, pool_param):
+def max_pool_forward_reshape(x: np.ndarray, pool_param: Dict[str, int]) -> Tuple[np.ndarray, tuple]:
     """
     A fast implementation of the forward pass for the max pooling layer that uses
     some clever reshaping.
@@ -202,7 +230,7 @@ def max_pool_forward_reshape(x, pool_param):
     return out, cache
 
 
-def max_pool_backward_reshape(dout, cache):
+def max_pool_backward_reshape(dout: np.ndarray, cache: dict) -> np.ndarray:
     """
     A fast implementation of the backward pass for the max pooling layer that
     uses some clever broadcasting and reshaping.
@@ -233,7 +261,7 @@ def max_pool_backward_reshape(dout, cache):
     return dx
 
 
-def max_pool_forward_im2col(x, pool_param):
+def max_pool_forward_im2col(x: np.ndarray, pool_param: Dict[str, int]) -> Tuple[np.ndarray, tuple]:
     """
     An implementation of the forward pass for max pooling based on im2col.
 
@@ -251,7 +279,7 @@ def max_pool_forward_im2col(x, pool_param):
     out_width = (W - pool_width) // stride + 1
 
     x_split = x.reshape(N * C, 1, H, W)
-    x_cols = im2col(x_split, pool_height, pool_width, padding=0, stride=stride)
+    x_cols = im2col_cython(x_split, pool_height, pool_width, padding=0, stride=stride)
     x_cols_argmax = np.argmax(x_cols, axis=0)
     x_cols_max = x_cols[x_cols_argmax, np.arange(x_cols.shape[1])]
     out = x_cols_max.reshape(out_height, out_width, N, C).transpose(2, 3, 0, 1)
@@ -260,7 +288,7 @@ def max_pool_forward_im2col(x, pool_param):
     return out, cache
 
 
-def max_pool_backward_im2col(dout, cache):
+def max_pool_backward_im2col(dout: np.ndarray, cache: tuple) -> np.ndarray:
     """
     An implementation of the backward pass for max pooling based on im2col.
 
@@ -272,7 +300,8 @@ def max_pool_backward_im2col(dout, cache):
     pool_height, pool_width = pool_param["pool_height"], pool_param["pool_width"]
     stride = pool_param["stride"]
 
-    dout_reshaped = dout.transpose(2, 3, 0, 1).flatten()
+    # dout_reshaped = dout.transpose(2, 3, 0, 1).flatten()
+    dout_reshaped = np.transpose(dout, axes=(2, 3, 0, 1)).flatten()
     dx_cols = np.zeros_like(x_cols)
     dx_cols[x_cols_argmax, np.arange(dx_cols.shape[1])] = dout_reshaped
     dx = col2im_indices(

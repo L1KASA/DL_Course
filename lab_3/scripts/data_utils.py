@@ -1,23 +1,28 @@
-from __future__ import print_function
+from __future__ import annotations, print_function
 
-from builtins import range
-from six.moves import cPickle as pickle
-import numpy as np
 import os
-from imageio import imread
 import platform
+from typing import TYPE_CHECKING
 
+import numpy as np
+from imageio import imread
+import pickle
 
-def load_pickle(f):
+if TYPE_CHECKING:
+    from typing import Any, Dict, Tuple
+    #from typing.io import BinaryIO
+    from typing import BinaryIO
+
+def load_pickle(file: BinaryIO) -> Dict[str, Any]:
     version = platform.python_version_tuple()
     if version[0] == "2":
-        return pickle.load(f)
+        return pickle.load(file)
     elif version[0] == "3":
-        return pickle.load(f, encoding="latin1")
+        return pickle.load(file, encoding="latin1")
     raise ValueError("invalid python version: {}".format(version))
 
 
-def load_CIFAR_batch(filename):
+def load_CIFAR_batch(filename: str) -> Tuple[np.ndarray, np.ndarray]:
     """ load single batch of cifar """
     with open(filename, "rb") as f:
         datadict = load_pickle(f)
@@ -28,7 +33,7 @@ def load_CIFAR_batch(filename):
         return X, Y
 
 
-def load_CIFAR10(ROOT):
+def load_CIFAR10(ROOT: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """ load all of cifar """
     xs = []
     ys = []
@@ -45,8 +50,11 @@ def load_CIFAR10(ROOT):
 
 
 def get_CIFAR10_data(
-    num_training=49000, num_validation=1000, num_test=1000, subtract_mean=True
-):
+    num_training: int = 49000,
+    num_validation: int = 1000,
+    num_test: int = 1000,
+    subtract_mean: bool = True,
+) -> Dict[str, np.ndarray]:
     """
     Load the CIFAR-10 dataset from disk and perform preprocessing to prepare
     it for classifiers. These are the same steps as we used for the SVM, but
@@ -92,7 +100,11 @@ def get_CIFAR10_data(
     }
 
 
-def load_tiny_imagenet(path, dtype=np.float32, subtract_mean=True):
+def load_tiny_imagenet(
+    path: str,
+    dtype=np.float32,
+    subtract_mean: bool = True,
+) -> Dict[str, np.ndarray]:
     """
     Load TinyImageNet. Each of TinyImageNet-100-A, TinyImageNet-100-B, and
     TinyImageNet-200 have the same directory structure, so this can be used
@@ -205,7 +217,6 @@ def load_tiny_imagenet(path, dtype=np.float32, subtract_mean=True):
         X_test -= mean_image[None]
 
     return {
-        "class_names": class_names,
         "X_train": X_train,
         "y_train": y_train,
         "X_val": X_val,
@@ -217,7 +228,7 @@ def load_tiny_imagenet(path, dtype=np.float32, subtract_mean=True):
     }
 
 
-def load_models(models_dir):
+def load_models(models_dir: str) -> Dict[str, Any]:
     """
     Load saved models from disk. This will attempt to unpickle all files in a
     directory; any files that give errors on unpickling (such as README.txt)
@@ -240,7 +251,7 @@ def load_models(models_dir):
     return models
 
 
-def load_imagenet_val(num=None):
+def load_imagenet_val(num: int = None) -> Tuple[np.ndarray, np.ndarray, Dict[str, Any]]:
     """Load a handful of validation images from ImageNet.
 
     Inputs:

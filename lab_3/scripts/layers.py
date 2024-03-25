@@ -1,9 +1,18 @@
-from builtins import range
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Tuple
+
 import numpy as np
 
+if TYPE_CHECKING:
+    from typing import Any, Dict, List, Optional, Tuple
 
 
-def affine_forward(x, w, b):
+def affine_forward(
+    x: np.ndarray,
+    w: np.ndarray,
+    b: np.ndarray,
+) -> Tuple[np.ndarray, Tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """
     Computes the forward pass for an affine (fully-connected) layer.
 
@@ -21,14 +30,13 @@ def affine_forward(x, w, b):
     - out: output, of shape (N, M)
     - cache: (x, w, b)
     """
-    out = None
     ###########################################################################
     # TODO: Implement the affine forward pass. Store the result in out. You   #
     # will need to reshape the input into rows.                               #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    out = x.reshape(x.shape[0], -1).dot(w) + b
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -38,7 +46,10 @@ def affine_forward(x, w, b):
     return out, cache
 
 
-def affine_backward(dout, cache):
+def affine_backward(
+    dout: np.ndarray,
+    cache: Tuple[np.ndarray, np.ndarray, np.ndarray],
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Computes the backward pass for an affine layer.
 
@@ -55,13 +66,17 @@ def affine_backward(dout, cache):
     - db: Gradient with respect to b, of shape (M,)
     """
     x, w, b = cache
-    dx, dw, db = None, None, None
     ###########################################################################
     # TODO: Implement the affine backward pass.                               #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    # Вычисляем градиент по входу
+    dx = np.dot(dout, w.T).reshape(x.shape)
+    # Вычисляем градиент по весам
+    dw = np.dot(x.reshape(x.shape[0], -1).T, dout)
+    # Вычисляем градиент по смещениям
+    db = np.sum(dout, axis=0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -70,7 +85,7 @@ def affine_backward(dout, cache):
     return dx, dw, db
 
 
-def relu_forward(x):
+def relu_forward(x: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
     Computes the forward pass for a layer of rectified linear units (ReLUs).
 
@@ -87,7 +102,7 @@ def relu_forward(x):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    out = np.maximum(x, 0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -97,7 +112,7 @@ def relu_forward(x):
     return out, cache
 
 
-def relu_backward(dout, cache):
+def relu_backward(dout: Any, cache: np.ndarray) -> np.ndarray:
     """
     Computes the backward pass for a layer of rectified linear units (ReLUs).
 
@@ -114,7 +129,8 @@ def relu_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    dx = dout.copy()  # Создаем копию градиента сверху
+    dx[x <= 0] = 0     # Обнуляем градиенты для всех отрицательных элементов входа x
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -123,7 +139,12 @@ def relu_backward(dout, cache):
     return dx
 
 
-def batchnorm_forward(x, gamma, beta, bn_param):
+def batchnorm_forward(
+    x: np.ndarray,
+    gamma: np.ndarray,
+    beta: np.ndarray,
+    bn_param: Dict[str, Any],
+) -> Tuple[np.ndarray, tuple]:
     """
     Forward pass for batch normalization.
 
@@ -194,7 +215,22 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        mu = np.mean(x, axis=0)
+
+        xmu = x - mu
+
+        var = np.var(x, axis=0)
+
+        sqrtvar = np.sqrt(var + eps)
+        ivar = 1. / sqrtvar
+        xhat = xmu * ivar
+
+        out = gamma * xhat + beta
+
+        cache = (xhat, gamma, xmu, ivar, sqrtvar, var, eps)
+
+        running_mean = momentum * running_mean + (1 - momentum) * mu
+        running_var = momentum * running_var + (1 - momentum) * var
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -209,7 +245,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        x_normalize = (x - running_mean) / np.sqrt(running_var + eps)
+        out = gamma * x_normalize + beta
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -225,7 +262,7 @@ def batchnorm_forward(x, gamma, beta, bn_param):
     return out, cache
 
 
-def batchnorm_backward(dout, cache):
+def batchnorm_backward(dout: np.ndarray, cache: Any) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Backward pass for batch normalization.
 
@@ -251,7 +288,32 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, D = dout.shape
+
+    xhat, gamma, xmu, ivar, sqrtvar, var, eps = cache
+
+    # Вычисляем градиенты для beta как сумму по всем наблюдениям
+    dbeta = np.sum(dout, axis=0)
+    
+    # Вычисляем градиенты для gamma как сумму по всем наблюдениям, умноженным на соответствующие значения xhat
+    dgamma = np.sum(dout * xhat, axis=0)
+
+    # Обратный проход через вычислительный граф для получения градиентов по входам x
+
+    # Сначала вычисляем градиенты через промежуточные узлы
+    dxhat = dout * gamma
+    divar = np.sum(dxhat * xmu, axis=0)
+    dxmu1 = dxhat * ivar
+    dsqrtvar = -1. / (sqrtvar**2) * divar
+    dvar = 0.5 * 1. / np.sqrt(var + eps) * dsqrtvar
+    dsq = 1. / N * np.ones((N, D)) * dvar
+    dxmu2 = 2 * xmu * dsq
+    dx1 = dxmu1 + dxmu2
+
+    # Вычисляем градиенты по входам x
+    dmu = -1 * np.sum(dxmu1 + dxmu2, axis=0)
+    dx2 = 1. / N * np.ones((N, D)) * dmu
+    dx = dx1 + dx2
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -261,15 +323,122 @@ def batchnorm_backward(dout, cache):
     return dx, dgamma, dbeta
 
 
+def layernorm_forward(
+    x: np.ndarray,
+    gamma: np.ndarray,
+    beta: np.ndarray,
+    ln_param: Dict[str, Any],
+) -> Tuple[np.ndarray, tuple]:
+    """
+    Forward pass for layer normalization.
+    During both training and test-time, the incoming data is normalized per data-point,
+    before being scaled by gamma and beta parameters identical to that of batch normalization.
+
+    Note that in contrast to batch normalization, the behavior during train and test-time for
+    layer normalization are identical, and we do not need to keep track of running averages
+    of any sort.
+    Input:
+    - x: Data of shape (N, D)
+    - gamma: Scale parameter of shape (D,)
+    - beta: Shift paremeter of shape (D,)
+    - ln_param: Dictionary with the following keys:
+        - eps: Constant for numeric stability
+    Returns a tuple of:
+    - out: of shape (N, D)
+    - cache: A tuple of values needed in the backward pass
+    """
+    eps = ln_param.get('eps', 1e-5)
+    ###########################################################################
+    # TODO: Implement the training-time forward pass for layer norm.          #
+    # Normalize the incoming data, and scale and  shift the normalized data   #
+    #  using gamma and beta.                                                  #
+    # HINT: this can be done by slightly modifying your training-time         #
+    # implementation of  batch normalization, and inserting a line or two of  #
+    # well-placed code. In particular, can you think of any matrix            #
+    # transformations you could perform, that would enable you to copy over   #
+    # the batch norm code and leave it almost unchanged?                      #
+    ###########################################################################
+
+    # Переворачиваем x для использования кода батч-нормализации, теперь x имеет форму (D, N)
+    x = x.T
+
+    # Вычисляем среднее значение по каждому признаку
+    mu = np.mean(x, axis=0)
+
+    # Центрируем данные
+    xmu = x - mu
+
+    # Вычисляем дисперсию
+    var = np.var(x, axis=0)
+
+    # Вычисляем стандартное отклонение с добавлением epsilon для численной стабильности
+    sqrtvar = np.sqrt(var + eps)
+    # Вычисляем обратное стандартное отклонение
+    ivar = 1. / sqrtvar
+    # Нормализуем данные
+    xhat = xmu * ivar
+
+    # Возвращаем в исходное положение, теперь форма xhat (N, D)
+    xhat = xhat.T
+
+    # Применяем масштабирование и сдвиг для нормализованных данных
+    out = gamma * xhat + beta
+
+    # Сохраняем промежуточные значения для обратного прохода
+    cache = (xhat, gamma, xmu, ivar, sqrtvar, var, eps)
+
+    ###########################################################################
+    #                             END OF YOUR CODE                            #
+    ###########################################################################
+    return out, cache
 
 
+def layernorm_backward(dout: np.ndarray, cache: Any) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Backward pass for layer normalization.
+    For this implementation, you can heavily rely on the work you've done already
+    for batch normalization.
+    Inputs:
+    - dout: Upstream derivatives, of shape (N, D)
+    - cache: Variable of intermediates from layernorm_forward.
+    Returns a tuple of:
+    - dx: Gradient with respect to inputs x, of shape (N, D)
+    - dgamma: Gradient with respect to scale parameter gamma, of shape (D,)
+    - dbeta: Gradient with respect to shift parameter beta, of shape (D,)
+    """
+    dx, dgamma, dbeta = None, None, None
+    ###########################################################################
+    # TODO: Implement the backward pass for layer norm.                       #
+    #                                                                         #
+    # HINT: this can be done by slightly modifying your training-time         #
+    # implementation of batch normalization. The hints to the forward pass    #
+    # still apply!                                                            #
+    ###########################################################################
+
+    xhat, gamma, xmu, ivar, sqrtvar, var, eps = cache
+
+    dbeta = np.sum(dout, axis=0)
+    dgamma = np.sum(xhat * dout, axis=0)
+
+    dxhat = dout * gamma
+
+    dxhat = dxhat.T
+    xhat = xhat.T
+
+    N, D = xhat.shape
+
+    dx = 1.0 / N * ivar * (N * dxhat - np.sum(dxhat, axis=0) - xhat * np.sum(dxhat * xhat, axis=0))
+
+    # Транспонировать dx обратно
+    dx = dx.T
+
+    ###########################################################################
+    #                             END OF YOUR CODE                            #
+    ###########################################################################
+    return dx, dgamma, dbeta
 
 
-
-
-
-
-def dropout_forward(x, dropout_param):
+def dropout_forward(x: np.ndarray, dropout_param: Dict[str, Any]) -> Tuple[np.ndarray, tuple]:
     """
     Performs the forward pass for (inverted) dropout.
 
@@ -309,7 +478,8 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        mask = (np.random.rand(*x.shape) < p) / p
+        out = x * mask
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -321,7 +491,7 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        out = x
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -334,7 +504,7 @@ def dropout_forward(x, dropout_param):
     return out, cache
 
 
-def dropout_backward(dout, cache):
+def dropout_backward(dout: np.ndarray, cache: tuple) -> np.ndarray:
     """
     Perform the backward pass for (inverted) dropout.
 
@@ -352,7 +522,7 @@ def dropout_backward(dout, cache):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        dx = dout * mask
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -363,7 +533,12 @@ def dropout_backward(dout, cache):
     return dx
 
 
-def conv_forward_naive(x, w, b, conv_param):
+def conv_forward_naive(
+    x: np.ndarray,
+    w: np.ndarray,
+    b: np.ndarray,
+    conv_param: Dict[str, int],
+) -> Tuple[np.ndarray, tuple]:
     """
     A naive implementation of the forward pass for a convolutional layer.
 
@@ -398,7 +573,35 @@ def conv_forward_naive(x, w, b, conv_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, C, H, W = x.shape
+    F, CC, HH, WW = w.shape
+    stride = int(conv_param['stride'])
+    pad = int(conv_param['pad'])
+
+    
+    if C != CC :
+        return "ERROR : channel depth of x and w is not equal"
+
+    xpad = np.zeros( (N, C, H + 2*pad, W + 2*pad) )
+    xpad[:, :, pad:-pad, pad:-pad] = x
+
+    Hout = 1 + (H + 2*pad - HH) / stride
+    Wout = 1 + (W + 2*pad - WW) / stride
+
+    
+    if Hout.is_integer() and Wout.is_integer() :
+        pass
+    else : 
+        return "H or W of output is not integer"
+    
+    Hout, Wout = int(Hout), int(Wout)
+    out = np.zeros( (N, F, Hout, Wout) )
+    
+
+    for n in range(N):
+        for i in range(Hout) :
+            for j in range(Wout) :
+                out[n,:,i,j] = np.sum(xpad[n, :, i*stride:i*stride+HH, j*stride:j*stride+WW] * w, axis=(1,2,3)) + b
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -408,7 +611,7 @@ def conv_forward_naive(x, w, b, conv_param):
     return out, cache
 
 
-def conv_backward_naive(dout, cache):
+def conv_backward_naive(dout: np.ndarray, cache: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     A naive implementation of the backward pass for a convolutional layer.
 
@@ -427,7 +630,38 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    # Извлечение данных из кэша
+    x, w, b, conv_param = cache
+    
+    # Извлечение размерностей массивов
+    N, F, Hout, Wout = dout.shape
+    _, C, H, W = x.shape
+    _, _, HH, WW = w.shape
+    
+    # Извлечение параметров свертки
+    stride = int(conv_param['stride'])
+    pad = int(conv_param['pad'])
+    
+    # Добавление паддинга к входным данным
+    xpad = np.pad(x, ((0, 0), (0, 0), (pad, pad), (pad, pad)), mode='constant')
+    
+    # Инициализация градиентов
+    dxpad = np.zeros_like(xpad)
+    dx = np.zeros_like(x)
+    dw = np.zeros_like(w)
+    db = np.sum(dout, axis=(0, 2, 3))
+    
+    # Обратный проход
+    for n in range(N):
+        for f in range(F):
+            for i in range(Hout):
+                for j in range(Wout):
+                    dxpad[n, :, i * stride:i * stride + HH, j * stride:j * stride + WW] += dout[n, f, i, j] * w[f, :, :, :]
+                    dw[f, :, :, :] += dout[n, f, i, j] * xpad[n, :, i * stride:i * stride + HH, j * stride:j * stride + WW]
+    
+    # Удаление паддинга из градиента по входным данным
+    dx = dxpad[:, :, pad:-pad, pad:-pad]
+
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -436,7 +670,7 @@ def conv_backward_naive(dout, cache):
     return dx, dw, db
 
 
-def max_pool_forward_naive(x, pool_param):
+def max_pool_forward_naive(x: np.ndarray, pool_param: Dict[str, int]) -> Tuple[np.ndarray, tuple]:
     """
     A naive implementation of the forward pass for a max-pooling layer.
 
@@ -461,7 +695,29 @@ def max_pool_forward_naive(x, pool_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N, C, H, W = x.shape
+    pool_height = pool_param['pool_height']
+    pool_width = pool_param['pool_width']
+    stride = pool_param['stride']
+
+    # Вычисление размеров выхода
+    H_out = 1 + (H - pool_height) // stride
+    W_out = 1 + (W - pool_width) // stride
+
+    # Инициализация выходного тензора
+    out = np.zeros((N, C, H_out, W_out))
+
+    # Проход по каждому изображению в батче
+    for n in range(N):
+        # Проход по каждому каналу
+        for c in range(C):
+            # Проход по каждой области входного изображения
+            for h in range(0, H - pool_height + 1, stride):
+                for w in range(0, W - pool_width + 1, stride):
+                    # Извлечение области для пулинга
+                    x_pool_region = x[n, c, h:h + pool_height, w:w + pool_width]
+                    # Нахождение максимального значения в области пулинга
+                    out[n, c, h // stride, w // stride] = np.max(x_pool_region)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -471,7 +727,7 @@ def max_pool_forward_naive(x, pool_param):
     return out, cache
 
 
-def max_pool_backward_naive(dout, cache):
+def max_pool_backward_naive(dout: np.ndarray, cache: tuple) -> np.ndarray:
     """
     A naive implementation of the backward pass for a max-pooling layer.
 
@@ -488,7 +744,37 @@ def max_pool_backward_naive(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x, pool_param = cache
+
+    N, C, H, W = x.shape
+    pool_height = pool_param['pool_height']
+    pool_width = pool_param['pool_width']
+    stride = pool_param['stride']
+
+    # Вычисление размеров выхода
+    H_out = 1 + (H - pool_height) // stride
+    W_out = 1 + (W - pool_width) // stride
+
+    # Инициализация градиента по x
+    dx = np.zeros_like(x)
+
+    # Проход по каждому изображению в батче
+    for n in range(N):
+        # Проход по каждому каналу
+        for c in range(C):
+            # Проход по каждому пикселю выходного изображения
+            for h_out in range(H_out):
+                for w_out in range(W_out):
+                    # Вычисление начального и конечного индексов области пулинга
+                    vert_start, vert_end = h_out * stride, h_out * stride + pool_height
+                    horiz_start, horiz_end = w_out * stride, w_out * stride + pool_width
+
+                    # Выделение области входных данных, соответствующей максимальному пикселю выхода
+                    x_pool_region = x[n, c, vert_start:vert_end, horiz_start:horiz_end]
+                    # Нахождение индексов максимального значения в области пулинга
+                    max_indices = np.unravel_index(np.argmax(x_pool_region), x_pool_region.shape)
+                    # Передача верхних производных только в максимальный пиксель области пулинга
+                    dx[n, c, vert_start + max_indices[0], horiz_start + max_indices[1]] += dout[n, c, h_out, w_out]
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -497,7 +783,12 @@ def max_pool_backward_naive(dout, cache):
     return dx
 
 
-def spatial_batchnorm_forward(x, gamma, beta, bn_param):
+def spatial_batchnorm_forward(
+    x: np.ndarray,
+    gamma: np.ndarray,
+    beta: np.ndarray,
+    bn_param: Dict[str, Any],
+) -> Tuple[np.ndarray, tuple]:
     """
     Computes the forward pass for spatial batch normalization.
 
@@ -540,7 +831,7 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     return out, cache
 
 
-def spatial_batchnorm_backward(dout, cache):
+def spatial_batchnorm_backward(dout: np.ndarray, cache: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Computes the backward pass for spatial batch normalization.
 
@@ -574,7 +865,13 @@ def spatial_batchnorm_backward(dout, cache):
     return dx, dgamma, dbeta
 
 
-def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
+def spatial_groupnorm_forward(
+    x: np.ndarray,
+    gamma: np.ndarray,
+    beta: np.ndarray,
+    G: np.ndarray,
+    gn_param: Dict[str, Any],
+) -> Tuple[np.ndarray, tuple]:
     """
     Computes the forward pass for spatial group normalization.
     In contrast to layer normalization, group normalization splits each entry 
@@ -613,7 +910,7 @@ def spatial_groupnorm_forward(x, gamma, beta, G, gn_param):
     return out, cache
 
 
-def spatial_groupnorm_backward(dout, cache):
+def spatial_groupnorm_backward(dout: np.ndarray, cache: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Computes the backward pass for spatial group normalization.
 
@@ -643,7 +940,7 @@ def spatial_groupnorm_backward(dout, cache):
     return dx, dgamma, dbeta
 
 
-def svm_loss(x, y):
+def svm_loss(x: np.ndarray, y: np.ndarray) -> Tuple[float, np.ndarray]:
     """
     Computes the loss and gradient using for multiclass SVM classification.
 
@@ -670,7 +967,7 @@ def svm_loss(x, y):
     return loss, dx
 
 
-def softmax_loss(x, y):
+def softmax_loss(x: np.ndarray, y: np.ndarray) -> Tuple[float, np.ndarray]:
     """
     Computes the loss and gradient for softmax classification.
 

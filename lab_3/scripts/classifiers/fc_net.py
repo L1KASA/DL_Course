@@ -1,9 +1,15 @@
-from builtins import range
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from builtins import object
 import numpy as np
 
 from ..layers import *
 from ..layer_utils import *
+
+if TYPE_CHECKING:
+    from typing import List, Optional
 
 
 class TwoLayerNet(object):
@@ -24,11 +30,11 @@ class TwoLayerNet(object):
 
     def __init__(
         self,
-        input_dim=3 * 32 * 32,
-        hidden_dim=100,
-        num_classes=10,
-        weight_scale=1e-3,
-        reg=0.0,
+        input_dim: int = 3 * 32 * 32,
+        hidden_dim: int = 100,
+        num_classes: int = 10,
+        weight_scale: float = 1e-3,
+        reg: float = 0.0,
     ):
         """
         Initialize a new network.
@@ -55,14 +61,24 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        W1 = np.random.randn(input_dim, hidden_dim) * weight_scale
+        self.params["W1"] = W1
+
+        b1 = np.zeros(hidden_dim)
+        self.params["b1"] = b1
+
+        W2 = np.random.randn(hidden_dim, num_classes) * weight_scale
+        self.params["W2"] =W2
+
+        b2 = np.zeros(num_classes)
+        self.params["b2"] = b2
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
 
-    def loss(self, X, y=None):
+    def loss(self, X: np.ndarray, y: Optional[np.ndarray] = None):
         """
         Compute loss and gradient for a minibatch of data.
 
@@ -88,7 +104,8 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        fc_layer1, cache1 = affine_relu_forward(X, self.params["W1"], self.params["b1"])
+        scores, cache2 = affine_forward(fc_layer1, self.params["W2"], self.params["b2"])
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -112,7 +129,21 @@ class TwoLayerNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        score_loss, dscores = softmax_loss(scores, y)
+
+        reg_loss = 0
+        reg_loss += np.sum(np.square(self.params["W1"]))
+        reg_loss += np.sum(np.square(self.params["W2"]))
+
+        loss = score_loss + 0.5 * self.reg * reg_loss
+
+        dfc_layer1, dW2, db2 = affine_backward(dscores, cache2)
+        _, dW1, db1 = affine_relu_backward(dfc_layer1, cache1)
+
+        grads["W1"] = dW1
+        grads["b1"] = db1
+        grads["W2"] = dW2
+        grads["b2"] = db2
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -140,15 +171,15 @@ class FullyConnectedNet(object):
 
     def __init__(
         self,
-        hidden_dims,
-        input_dim=3 * 32 * 32,
-        num_classes=10,
-        dropout=1,
-        normalization=None,
-        reg=0.0,
-        weight_scale=1e-2,
+        hidden_dims: List[int],
+        input_dim: int = 3 * 32 * 32,
+        num_classes: int = 10,
+        dropout: int = 1,
+        normalization: Optional[str] = None,
+        reg: float = 0.0,
+        weight_scale: float = 1e-2,
         dtype=np.float32,
-        seed=None,
+        seed: Optional[int] = None,
     ):
         """
         Initialize a new FullyConnectedNet.
@@ -191,8 +222,34 @@ class FullyConnectedNet(object):
         # parameters should be initialized to zeros.                               #
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+       
 
-        pass
+        for layer_index in range(self.num_layers):
+            # Проверяем, не является ли текущий слой последним
+            if layer_index != self.num_layers - 1:
+                # Если это не первый слой, инициализируем веса с предыдущего слоя
+                if layer_index == 0:
+                    weights = np.random.normal(loc=0.0, scale=weight_scale, size=(input_dim, hidden_dims[0]))
+                else:
+                    weights = np.random.normal(loc=0.0, scale=weight_scale, size=(hidden_dims[layer_index - 1], hidden_dims[layer_index]))
+                # Инициализируем смещения нулями
+                biases = np.zeros(hidden_dims[layer_index])
+
+                # Если используется нормализация по батчу или слойная нормализация
+                if self.normalization in ["batchnorm", "layernorm"]:
+                    # Инициализируем параметры гамма и бета
+                    self.params[f"gamma{str(layer_index + 1)}"] = np.ones(hidden_dims[layer_index])
+                    self.params[f"beta{str(layer_index + 1)}"] = np.zeros(hidden_dims[layer_index])
+            else:
+                # Для последнего слоя инициализируем веса для выходных классов
+                weights = np.random.normal(loc=0.0, scale=weight_scale, size=(hidden_dims[-1], num_classes))
+                # Инициализируем смещения нулями
+                biases = np.zeros(num_classes)
+
+            # Сохраняем веса и смещения в параметры модели
+            self.params[f"W{str(layer_index + 1)}"] = weights
+            self.params[f"b{str(layer_index + 1)}"] = biases
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -223,7 +280,7 @@ class FullyConnectedNet(object):
         for k, v in self.params.items():
             self.params[k] = v.astype(dtype)
 
-    def loss(self, X, y=None):
+    def loss(self, X: np.ndarray, y: Optional[np.ndarray] = None):
         """
         Compute loss and gradient for the fully-connected net.
 
@@ -239,7 +296,6 @@ class FullyConnectedNet(object):
         if self.normalization == "batchnorm":
             for bn_param in self.bn_params:
                 bn_param["mode"] = mode
-        scores = None
         ############################################################################
         # TODO: Implement the forward pass for the fully-connected net, computing  #
         # the class scores for X and storing them in the scores variable.          #
@@ -254,7 +310,40 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        caches = {}
+
+        for i in range(self.num_layers - 1):
+            w_i_str = f"W{str(i + 1)}"
+            b_i_str = f"b{str(i + 1)}"
+
+            if i == 0:
+                out_ = X
+
+            # Если используется пакетная нормализация
+            if self.normalization == "batchnorm":
+                fc_out, fc_cache = affine_forward(out_, self.params[w_i_str], self.params[b_i_str])
+                bn_out, bn_cache = batchnorm_forward(fc_out, self.params[f"gamma{str(i + 1)}"], self.params[f"beta{str(i + 1)}"], self.bn_params[i])
+                out_, relu_cache = relu_forward(bn_out)
+                caches[i + 1] = (fc_cache, bn_cache, relu_cache)
+
+            # Если используется нормализация по слоям
+            elif self.normalization == "layernorm":
+                fc_out, fc_cache = affine_forward(out_, self.params[w_i_str], self.params[b_i_str])
+                ln_out, ln_cache = layernorm_forward(fc_out, self.params[f"gamma{str(i + 1)}"], self.params[f"beta{str(i + 1)}"], self.ln_params[i])
+                out_, relu_cache = relu_forward(ln_out)
+                caches[i + 1] = (fc_cache, ln_cache, relu_cache)
+
+            # Если не используется нормализация
+            else:
+                out_, caches[i + 1] = affine_relu_forward(out_, self.params[w_i_str], self.params[b_i_str])
+
+            # Если используется dropout
+            if self.use_dropout:
+                # Применение dropout к выходу текущего слоя
+                out_, caches[f"dropout{str(i + 1)}"] = dropout_forward(out_, self.dropout_param)
+
+        scores, caches[self.num_layers] = affine_forward(out_, self.params[f"W{str(self.num_layers)}"], self.params[f"b{str(self.num_layers)}"])
+        
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -281,7 +370,44 @@ class FullyConnectedNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # Рассчитываем softmax loss и его градиенты
+        loss, dscores = softmax_loss(scores, y)
+        
+        # Обратный проход по сети
+        for i in range(self.num_layers, 0, -1):
+            # Добавляем регуляризацию к loss
+            loss += 0.5 * self.reg * np.sum(np.square(self.params[f"W{str(i)}"]))
+        
+            if i == self.num_layers:
+                # Обратный проход для последнего слоя
+                dout, grads[f"W{str(i)}"], grads[f"b{str(i)}"] = affine_backward(dscores, caches[i])
+            else:
+                # Если используется dropout, применяем его в обратном направлении
+                if self.use_dropout:
+                    dout = dropout_backward(dout, caches[f"dropout{str(i)}"])
+        
+                if self.normalization == "batchnorm":
+                    # Обратный проход для слоя batch normalization
+                    fc_cache, bn_cache, relu_cache = caches[i]
+                    dbn_out = relu_backward(dout, relu_cache)
+                    dfc_out, grads[f"gamma{str(i)}"], grads[f"beta{str(i)}"] = batchnorm_backward(dbn_out, bn_cache)
+                    dout, grads[f"W{str(i)}"], grads[f"b{str(i)}"] = affine_backward(dfc_out, fc_cache)
+        
+                elif self.normalization == "layernorm":
+                    # Обратный проход для слоя layer normalization
+                    fc_cache, ln_cache, relu_cache = caches[i]
+                    dln_out = relu_backward(dout, relu_cache)
+                    dfc_out, grads[f"gamma{str(i)}"], grads[f"beta{str(i)}"] = layernorm_backward(dln_out, ln_cache)
+                    dout, grads[f"W{str(i)}"], grads[f"b{str(i)}"] = affine_backward(dfc_out, fc_cache)
+        
+                else:
+                    # Обратный проход для слоя активации ReLU и аффинного слоя
+                    dout, grads[f"W{str(i)}"], grads[f"b{str(i)}"] = affine_relu_backward(dout, caches[i])
+        
+            # Добавляем регуляризацию градиентам весов
+            grads['W' + str(i)] += self.reg * self.params['W' + str(i)]
+        
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################

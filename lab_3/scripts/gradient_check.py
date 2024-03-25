@@ -1,12 +1,20 @@
-from __future__ import print_function
-from builtins import range
-from past.builtins import xrange
+from __future__ import annotations, print_function
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 from random import randrange
 
+if TYPE_CHECKING:
+    from typing import Any, Callable, Dict, List, Optional
 
-def eval_numerical_gradient(f, x, verbose=True, h=0.00001):
+
+def eval_numerical_gradient(
+    f: Callable[[np.ndarray], float],
+    x: np.ndarray,
+    verbose: bool = True,
+    h: float = 0.00001,
+) -> np.ndarray:
     """
     a naive implementation of numerical gradient of f at x
     - f should be a function that takes a single argument
@@ -37,7 +45,12 @@ def eval_numerical_gradient(f, x, verbose=True, h=0.00001):
     return grad
 
 
-def eval_numerical_gradient_array(f, x, df, h=1e-5):
+def eval_numerical_gradient_array(
+    f: Callable[[np.ndarray], float],
+    x: np.ndarray,
+    df: float,
+    h: float = 1e-5,
+) -> np.ndarray:
     """
     Evaluate a numeric gradient for a function that accepts a numpy
     array and returns a numpy array.
@@ -49,9 +62,9 @@ def eval_numerical_gradient_array(f, x, df, h=1e-5):
 
         oldval = x[ix]
         x[ix] = oldval + h
-        pos = f(x).copy()
+        pos = np.copy(f(x))
         x[ix] = oldval - h
-        neg = f(x).copy()
+        neg = np.copy(f(x))
         x[ix] = oldval
 
         grad[ix] = np.sum((pos - neg) * df) / (2 * h)
@@ -59,7 +72,12 @@ def eval_numerical_gradient_array(f, x, df, h=1e-5):
     return grad
 
 
-def eval_numerical_gradient_blobs(f, inputs, output, h=1e-5):
+def eval_numerical_gradient_blobs(
+    f: Callable[[Any, Any, Any], None],
+    inputs: tuple,
+    output: Any,
+    h: float = 1e-5,
+) -> List[np.ndarray]:
     """
     Compute numeric gradients for a function that operates on input
     and output blobs.
@@ -100,13 +118,19 @@ def eval_numerical_gradient_blobs(f, inputs, output, h=1e-5):
     return numeric_diffs
 
 
-def eval_numerical_gradient_net(net, inputs, output, h=1e-5):
+def eval_numerical_gradient_net(net: Any, inputs: tuple, output: Any, h: float = 1e-5) -> List[np.ndarray]:
     return eval_numerical_gradient_blobs(
         lambda *args: net.forward(), inputs, output, h=h
     )
 
 
-def grad_check_sparse(f, x, analytic_grad, num_checks=10, h=1e-5):
+def grad_check_sparse(
+    f: Callable[[np.ndarray], float],
+    x: np.ndarray,
+    analytic_grad: np.ndarray,
+    num_checks: int = 10,
+    h: float = 1e-5,
+) -> None:
     """
     sample a few random elements and only return numerical
     in this dimensions.

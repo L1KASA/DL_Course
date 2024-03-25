@@ -1,4 +1,11 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from typing import Any, Dict, List, Optional, Tuple
 
 """
 This file implements various first-order update rules that are commonly used
@@ -30,7 +37,7 @@ setting next_w equal to w.
 """
 
 
-def sgd(w, dw, config=None):
+def sgd(w: np.ndarray, dw: np.ndarray, config: Optional[Dict[str, Any]] = None) -> Tuple[np.ndarray, Dict[str, Any]]:
     """
     Performs vanilla stochastic gradient descent.
 
@@ -45,7 +52,11 @@ def sgd(w, dw, config=None):
     return w, config
 
 
-def sgd_momentum(w, dw, config=None):
+def sgd_momentum(
+    w: np.ndarray,
+    dw: np.ndarray,
+    config: Optional[Dict[str, Any]] = None,
+) -> Tuple[np.ndarray, Dict[str, Any]]:
     """
     Performs stochastic gradient descent with momentum.
 
@@ -62,14 +73,14 @@ def sgd_momentum(w, dw, config=None):
     config.setdefault("momentum", 0.9)
     v = config.get("velocity", np.zeros_like(w))
 
-    next_w = None
     ###########################################################################
     # TODO: Implement the momentum update formula. Store the updated value in #
     # the next_w variable. You should also use and update the velocity v.     #
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    v = config['momentum'] * v - config['learning_rate'] * dw
+    next_w = w + v
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -80,7 +91,11 @@ def sgd_momentum(w, dw, config=None):
     return next_w, config
 
 
-def rmsprop(w, dw, config=None):
+def rmsprop(
+    w: np.ndarray,
+    dw: np.ndarray,
+    config: Optional[Dict[str, Any]] = None,
+) -> Tuple[np.ndarray, Dict[str, Any]]:
     """
     Uses the RMSProp update rule, which uses a moving average of squared
     gradient values to set adaptive per-parameter learning rates.
@@ -107,7 +122,8 @@ def rmsprop(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    config['cache'] = config['decay_rate'] * config['cache'] + (1 - config['decay_rate']) * dw ** 2
+    next_w = w - config['learning_rate'] * dw / (np.sqrt(config['cache']) + config['epsilon'])
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -117,7 +133,7 @@ def rmsprop(w, dw, config=None):
     return next_w, config
 
 
-def adam(w, dw, config=None):
+def adam(w: np.ndarray, dw: np.ndarray, config: Optional[Dict[str, Any]] = None) -> Tuple[np.ndarray, Dict[str, Any]]:
     """
     Uses the Adam update rule, which incorporates moving averages of both the
     gradient and its square and a bias correction term.
@@ -152,7 +168,15 @@ def adam(w, dw, config=None):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    config['t'] += 1
+
+    config['m'] = config['beta1'] * config['m'] + (1 - config['beta1']) * dw
+    mt = config['m'] / (1 - config['beta1'] ** config['t'])
+
+    config['v'] = config['beta2'] * config['v'] + (1 - config['beta2']) * dw ** 2
+    vt = config['v'] / (1 - config['beta2'] ** config['t'])
+    
+    next_w = w - config['learning_rate'] * mt / (np.sqrt(vt) + config['epsilon'])
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################

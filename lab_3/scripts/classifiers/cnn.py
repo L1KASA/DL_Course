@@ -1,9 +1,16 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from builtins import object
 import numpy as np
 
 from ..layers import *
 from ..fast_layers import *
 from ..layer_utils import *
+
+if TYPE_CHECKING:
+    from typing import List, Optional, Tuple
 
 
 class ThreeLayerConvNet(object):
@@ -19,13 +26,13 @@ class ThreeLayerConvNet(object):
 
     def __init__(
         self,
-        input_dim=(3, 32, 32),
-        num_filters=32,
-        filter_size=7,
-        hidden_dim=100,
-        num_classes=10,
-        weight_scale=1e-3,
-        reg=0.0,
+        input_dim: Tuple[int, int, int] = (3, 32, 32),
+        num_filters: int = 32,
+        filter_size: int = 7,
+        hidden_dim: int = 100,
+        num_classes: int = 10,
+        weight_scale: float = 1e-3,
+        reg: float = 0.0,
         dtype=np.float32,
     ):
         """
@@ -63,7 +70,38 @@ class ThreeLayerConvNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # Определение размерности входных данных
+        C, H, W = input_dim
+        # Количество фильтров свертки
+        num_filters = num_filters
+        # Размеры фильтра свертки
+        filter_height = filter_size
+        filter_width = filter_size
+        # Размерность скрытого слоя
+        hidden_dim = hidden_dim
+        # Количество классов
+        num_classes = num_classes
+        # Масштаб весов
+        weight_scale = weight_scale
+
+        # Инициализация параметров
+        self.params = {}
+        self.reg = reg
+        self.dtype = dtype
+
+        # Инициализация весов и смещений для первого сверточного слоя
+        self.params['W1'] = np.random.normal(loc=0.0, scale=weight_scale, size=(num_filters, C, filter_height, filter_width))
+        self.params['b1'] = np.zeros(num_filters)
+
+        # Инициализация весов и смещений для второго полносвязного слоя
+        self.params['W2'] = np.random.normal(loc=0.0, scale=weight_scale, size=(int(num_filters*(H/2)*(W/2)), hidden_dim))
+        self.params['b2'] = np.zeros(hidden_dim)
+
+        # Инициализация весов и смещений для третьего полносвязного слоя
+        self.params['W3'] = np.random.normal(loc=0.0, scale=weight_scale, size=(hidden_dim, num_classes))
+        self.params['b3'] = np.zeros(num_classes)
+
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -73,7 +111,7 @@ class ThreeLayerConvNet(object):
         for k, v in self.params.items():
             self.params[k] = v.astype(dtype)
 
-    def loss(self, X, y=None):
+    def loss(self, X: np.ndarray, y: Optional[np.ndarray] = None):
         """
         Evaluate loss and gradient for the three-layer convolutional network.
 
@@ -102,7 +140,34 @@ class ThreeLayerConvNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # Преобразование типа X в self.dtype
+        X = X.astype(self.dtype)
+        # Инициализация кэшей
+        self.caches = []
+
+        # Прямой проход через сверточный слой
+        out, cache = conv_forward_fast(X, W1, b1, conv_param)
+        self.caches.append(cache)
+        # Прямой проход через слой ReLU
+        out, cache = relu_forward(out)
+        self.caches.append(cache)
+        # Прямой проход через слой максимальной пуллинга
+        out, cache = max_pool_forward_fast(out, pool_param)
+        self.caches.append(cache)
+
+        # Прямой проход через второй полносвязный слой
+        out, cache = affine_forward(out, W2, b2)
+        self.caches.append(cache)
+        # Прямой проход через слой ReLU
+        out, cache = relu_forward(out)
+        self.caches.append(cache)
+
+        # Прямой проход через третий полносвязный слой
+        out, cache = affine_forward(out, W3, b3)
+        self.caches.append(cache)
+
+        # Присваивание оценок
+        scores = out
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
@@ -125,7 +190,38 @@ class ThreeLayerConvNet(object):
         ############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        loss, dscores = softmax_loss(scores, y)
+        # Добавление L2-регуляризации для W_conv1, W_affine2 и W_affine3
+        loss += 0.5 * self.reg * (np.sum(W1 * W1) + np.sum(W2 * W2) + np.sum(W3 * W3))
+
+        # Обратный проход через третий полносвязный слой
+        dx3, dW3, db3 = affine_backward(dscores, self.caches.pop())
+        grads["W3"] = dW3 + self.reg * W3
+        grads["b3"] = db3
+
+        # Обратный проход через слой ReLU
+        dx2 = relu_backward(dx3, self.caches.pop())
+
+        # Обратный проход через второй полносвязный слой
+        dx2, dW2, db2 = affine_backward(dx2, self.caches.pop())
+        grads["W2"] = dW2 + self.reg * W2
+        grads["b2"] = db2
+
+        # Обратный проход через слой максимальной пуллинга
+        dx1 = max_pool_backward_fast(dx2, self.caches.pop())
+
+        # Обратный проход через слой ReLU
+        dx1 = relu_backward(dx1, self.caches.pop())
+
+        # Обратный проход через сверточный слой
+        _, dW1, db1 = conv_backward_fast(dx1, self.caches.pop())
+        grads["W1"] = dW1 + self.reg * W1
+        grads["b1"] = db1
+
+        # Добавление градиентов регуляризации для W1, W2 и W3
+        grads["W1"] += self.reg * W1
+        grads["W2"] += self.reg * W2
+        grads["W3"] += self.reg * W3
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################

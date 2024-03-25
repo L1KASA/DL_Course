@@ -1,11 +1,19 @@
-from builtins import range
-from past.builtins import xrange
+from __future__ import annotations
 
 from math import sqrt, ceil
+from typing import TYPE_CHECKING
+
 import numpy as np
 
+if TYPE_CHECKING:
+    from typing import Any, Dict, List, Optional
 
-def visualize_grid(Xs, ubound=255.0, padding=1):
+
+def visualize_grid(
+    Xs: np.ndarray,
+    ubound: float = 255.0,
+    padding: int = 1,
+) -> np.ndarray:
     """
     Reshape a 4D tensor of image data to a grid for easy visualization.
 
@@ -40,7 +48,7 @@ def visualize_grid(Xs, ubound=255.0, padding=1):
     return grid
 
 
-def vis_grid(Xs):
+def vis_grid(Xs: np.ndarray) -> np.ndarray:
     """ visualize a grid of images """
     (N, H, W, C) = Xs.shape
     A = int(ceil(sqrt(N)))
@@ -61,7 +69,7 @@ def vis_grid(Xs):
     return G
 
 
-def vis_nn(rows):
+def vis_nn(rows: np.ndarray) -> np.ndarray:
     """ visualize array of arrays of images """
     N = len(rows)
     D = len(rows[0])
