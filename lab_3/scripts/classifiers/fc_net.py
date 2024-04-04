@@ -137,13 +137,15 @@ class TwoLayerNet(object):
 
         loss = score_loss + 0.5 * self.reg * reg_loss
 
-        dfc_layer1, dW2, db2 = affine_backward(dscores, cache2)
-        _, dW1, db1 = affine_relu_backward(dfc_layer1, cache1)
 
-        grads["W1"] = dW1
+        dout_1, dW2, db2 = affine_backward(dscores, cache2)
+        dX, dW1, db1 = affine_relu_backward(dout_1, cache1)
+
+        grads["W1"] = dW1 + self.reg * self.params['W1']
         grads["b1"] = db1
-        grads["W2"] = dW2
+        grads["W2"] = dW2 + self.reg * self.params['W2']
         grads["b2"] = db2
+
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         ############################################################################
